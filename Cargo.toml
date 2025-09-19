@@ -1,6 +1,6 @@
 [package]
 name = "gsm7-alt"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["Varelion"]
 description = "GSM7 encoding and decoding by integer."
