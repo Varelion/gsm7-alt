@@ -1,4 +1,4 @@
-use gsm7::{decode, encode, encoded_len, is_gsm7_compatible, Gsm7Config};
+use gsm7::{encode, decode, encoded_len, is_gsm7_compatible, Gsm7Config};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let text = "Hello {world} €!";
@@ -22,10 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let encoded_with_replacement = gsm7::encode_with_config(emoji_text, &config)?;
     let decoded_with_replacement = decode(&encoded_with_replacement)?;
-    println!(
-        "With replacement: {} -> {}",
-        emoji_text, decoded_with_replacement
-    );
+    println!("With replacement: {} -> {}", emoji_text, decoded_with_replacement);
 
     Ok(())
 }
