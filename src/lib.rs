@@ -54,8 +54,18 @@ pub struct Gsm7Config {
 impl Default for Gsm7Config {
     fn default() -> Self {
         Self {
+            strict: false,
+            replacement_char: '�',
+        }
+    }
+}
+
+impl Gsm7Config {
+    /// Create a config with strict mode enabled.
+    pub fn strict() -> Self {
+        Self {
             strict: true,
-            replacement_char: ' ',
+            replacement_char: '�',
         }
     }
 }
@@ -172,12 +182,12 @@ pub fn encode_with_config(content: &str, config: &Gsm7Config) -> Result<Vec<u8>>
 ///
 /// # Returns
 ///
-/// A `String` containing the decoded text.
+/// A `String` containing the decoded text. Invalid bytes are replaced with '�'.
 ///
-/// # Errors
+/// # Note
 ///
-/// Returns `Gsm7Error::InvalidByte` or `Gsm7Error::InvalidEscapeSequence`
-/// if the input contains invalid GSM 7-bit data.
+/// This function uses non-strict mode by default. Invalid bytes will be replaced
+/// with the replacement character '�' instead of returning an error.
 ///
 /// # Example
 ///
@@ -188,6 +198,11 @@ pub fn encode_with_config(content: &str, config: &Gsm7Config) -> Result<Vec<u8>>
 /// let encoded = encode(original)?;
 /// let decoded = decode(&encoded)?;
 /// assert_eq!(decoded, original);
+///
+/// // Invalid bytes are replaced
+/// let invalid_data = vec![0x48, 0x81, 0x65]; // "H" + invalid + "e"
+/// let decoded = decode(&invalid_data)?;
+/// assert_eq!(decoded, "H�e");
 /// # Ok::<(), gsm7::Gsm7Error>(())
 /// ```
 pub fn decode(data: &[u8]) -> Result<String> {
@@ -255,12 +270,8 @@ pub fn decode_with_config(data: &[u8], config: &Gsm7Config) -> Result<String> {
                 }
             }
         } else {
-            // Invalid byte (>= 128)
-            if config.strict {
-                return Err(Gsm7Error::InvalidByte { byte: code });
-            } else {
-                result.push(config.replacement_char);
-            }
+            // Invalid byte (>= 128) - always replace with � character
+            result.push(config.replacement_char);
         }
         i += 1;
     }
@@ -505,11 +516,10 @@ mod tests {
 
     #[test]
     fn test_unsupported_character() {
-        let result = encode("Hello 🦀 World");
-        assert!(matches!(
-            result,
-            Err(Gsm7Error::UnsupportedCharacter { .. })
-        ));
+        // With default config (non-strict), should replace with �
+        let encoded = encode("Hello 🦀 World").unwrap();
+        let decoded = decode(&encoded).unwrap();
+        assert_eq!(decoded, "Hello � World");
     }
 
     #[test]
@@ -547,22 +557,35 @@ mod tests {
     }
 
     #[test]
+    fn test_invalid_byte_replaced() {
+        // Test byte 0x81 (outside valid range)
+        let invalid_data = vec![0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x81, 0x20, 0x57]; // "Hello" + 0x81 + " W"
+        let decoded = decode(&invalid_data).unwrap();
+        assert_eq!(decoded, "Hello� W");
+    }
+
+    #[test]
+    fn test_multiple_invalid_bytes() {
+        // Test multiple invalid bytes interspersed with valid ones
+        let invalid_data = vec![0x48, 0x81, 0x65, 0x82, 0x6C, 0x83]; // "H" + 0x81 + "e" + 0x82 + "l" + 0x83
+        let decoded = decode(&invalid_data).unwrap();
+        assert_eq!(decoded, "H�e�l�");
+    }
+
+    #[test]
     fn test_invalid_escape_sequence() {
         // Create invalid data: escape followed by unsupported code
         let invalid_data = [0x1B, 0xFF];
-        let result = decode(&invalid_data);
-        assert!(matches!(
-            result,
-            Err(Gsm7Error::InvalidEscapeSequence { .. })
-        ));
+        let decoded = decode(&invalid_data).unwrap();
+        assert_eq!(decoded, "�");
     }
 
     #[test]
     fn test_malformed_data() {
-        // Escape at end of input
+        // Escape at end of input - should replace with �
         let invalid_data = [0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x1B];
-        let result = decode(&invalid_data);
-        assert!(matches!(result, Err(Gsm7Error::MalformedData { .. })));
+        let decoded = decode(&invalid_data).unwrap();
+        assert_eq!(decoded, "Hello�");
     }
 
     #[test]

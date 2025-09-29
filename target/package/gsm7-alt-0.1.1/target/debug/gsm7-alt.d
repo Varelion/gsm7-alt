@@ -1,0 +1,1 @@
+C:\Users\idrodrigues\.prj\gsm7\target\package/gsm7-alt-0.1.1\target\debug\gsm7-alt.exe: C:\Users\idrodrigues\.prj\gsm7\target\package\gsm7-alt-0.1.1\src\lib.rs C:\Users\idrodrigues\.prj\gsm7\target\package\gsm7-alt-0.1.1\src\main.rs
